@@ -429,14 +429,57 @@ function AssetOverview({ records }) {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <Panel accent={C.blue} style={{ padding: "14px 16px", width: "min(100%, 980px)" }}>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(420px, 520px) minmax(360px, 1fr)", gap: 16, alignItems: "stretch" }}>
+        <Panel accent={C.blue} style={{ padding: "14px 16px" }}>
+          <div style={{ display: "grid", gap: 12 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.25 }}>기간 선택</h2>
               <div style={{ marginTop: 4, color: C.muted, fontSize: 12 }}>{selectedLabel}</div>
             </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(180px, 1fr))", gap: 12 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작일</span>
+                <input
+                  aria-label="자산현황 시작 날짜"
+                  type="date"
+                  min={minDate}
+                  max={maxDate}
+                  value={safeStartDate}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setStartDate(value);
+                    if (value > endDate) setEndDate(value);
+                  }}
+                  style={dateInputStyle(C.blue)}
+                />
+              </label>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료일</span>
+                <input
+                  aria-label="자산현황 종료 날짜"
+                  type="date"
+                  min={minDate}
+                  max={maxDate}
+                  value={safeEndDate}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setEndDate(value);
+                    if (value < startDate) setStartDate(value);
+                  }}
+                  style={dateInputStyle(C.pink)}
+                />
+              </label>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel accent={C.green} style={{ padding: "14px 16px" }}>
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.25 }}>빠른 선택</h2>
+              <div style={{ marginTop: 4, color: C.muted, fontSize: 12 }}>최신 기록 기준으로 기간을 바로 적용</div>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignContent: "start" }}>
               {quickRanges.map((months) => (
                 <button
                   key={months}
@@ -459,42 +502,8 @@ function AssetOverview({ records }) {
               </button>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(180px, 240px))", gap: 12 }}>
-            <label style={{ display: "grid", gap: 6 }}>
-              <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작일</span>
-              <input
-                aria-label="자산현황 시작 날짜"
-                type="date"
-                min={minDate}
-                max={maxDate}
-                value={safeStartDate}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setStartDate(value);
-                  if (value > endDate) setEndDate(value);
-                }}
-                style={dateInputStyle(C.blue)}
-              />
-            </label>
-            <label style={{ display: "grid", gap: 6 }}>
-              <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료일</span>
-              <input
-                aria-label="자산현황 종료 날짜"
-                type="date"
-                min={minDate}
-                max={maxDate}
-                value={safeEndDate}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setEndDate(value);
-                  if (value < startDate) setStartDate(value);
-                }}
-                style={dateInputStyle(C.pink)}
-              />
-            </label>
-          </div>
-        </div>
-      </Panel>
+        </Panel>
+      </div>
 
       <div className="stat-grid">
         <StatCard label="가족 순자산" value={compactWon(latest["순자산합계"])} color={C.green} sub={<ChangePill value={latest["순자산합계"] - periodStart["순자산합계"]} label="선택기간 변화" />} />
