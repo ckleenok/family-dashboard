@@ -280,7 +280,7 @@ function PanelTitle({ title, sub }) {
   );
 }
 
-function ChangePill({ value, inverse = false }) {
+function ChangePill({ value, inverse = false, label = "전월 대비" }) {
   const good = value === 0 ? null : (value > 0) !== inverse;
   const color = good === null ? C.muted : good ? C.green : C.pink;
   return (
@@ -295,7 +295,7 @@ function ChangePill({ value, inverse = false }) {
       fontSize: 12,
       fontWeight: 800,
     }}>
-      {value > 0 ? "+" : ""}{money(value)} 전월 대비
+      {value > 0 ? "+" : ""}{money(value)} {label}
     </span>
   );
 }
@@ -356,23 +356,62 @@ function chartRows(records) {
 }
 
 function AssetOverview({ records }) {
-  const latest = records.at(-1);
-  const previous = records.at(-2) || latest;
-  const data = chartRows(records);
+  const [startIndex, setStartIndex] = useState(0);
+  const [endIndex, setEndIndex] = useState(records.length - 1);
+  const safeStart = Math.min(startIndex, records.length - 1);
+  const safeEnd = Math.min(Math.max(endIndex, safeStart), records.length - 1);
+  const selectedRecords = records.slice(safeStart, safeEnd + 1);
+  const latest = selectedRecords.at(-1);
+  const periodStart = selectedRecords[0] || latest;
+  const data = chartRows(selectedRecords);
   const goalRate = latest["목표순자산"] ? latest["순자산합계"] / latest["목표순자산"] : 0;
+  const maxIndex = records.length - 1;
+  const selectedLabel = `${formatDate(records[safeStart].date)} - ${formatDate(records[safeEnd].date)} · ${selectedRecords.length}개 기록`;
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <Panel accent={C.blue} style={{ padding: "16px 20px" }}>
+        <PanelTitle title="기간 선택" sub={selectedLabel} />
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "80px minmax(0, 1fr) 112px", gap: 12, alignItems: "center" }}>
+            <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작</span>
+            <input
+              aria-label="자산현황 시작 날짜"
+              type="range"
+              min="0"
+              max={maxIndex}
+              value={safeStart}
+              onChange={(event) => setStartIndex(Math.min(Number(event.target.value), safeEnd))}
+              style={{ width: "100%", accentColor: C.blue }}
+            />
+            <span style={{ color: C.text, fontSize: 12, textAlign: "right" }}>{formatDate(records[safeStart].date)}</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "80px minmax(0, 1fr) 112px", gap: 12, alignItems: "center" }}>
+            <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료</span>
+            <input
+              aria-label="자산현황 종료 날짜"
+              type="range"
+              min="0"
+              max={maxIndex}
+              value={safeEnd}
+              onChange={(event) => setEndIndex(Math.max(Number(event.target.value), safeStart))}
+              style={{ width: "100%", accentColor: C.pink }}
+            />
+            <span style={{ color: C.text, fontSize: 12, textAlign: "right" }}>{formatDate(records[safeEnd].date)}</span>
+          </div>
+        </div>
+      </Panel>
+
       <div className="stat-grid">
-        <StatCard label="가족 순자산" value={compactWon(latest["순자산합계"])} color={C.green} sub={<ChangePill value={latest["순자산합계"] - previous["순자산합계"]} />} />
+        <StatCard label="가족 순자산" value={compactWon(latest["순자산합계"])} color={C.green} sub={<ChangePill value={latest["순자산합계"] - periodStart["순자산합계"]} label="선택기간 변화" />} />
         <StatCard label="목표 대비" value={compactWon(latest["순자산-목표순자산"])} color={C.blue} sub={`목표 ${compactWon(latest["목표순자산"])} · 달성 ${percent(goalRate)}`} />
-        <StatCard label="가용자산" value={compactWon(latest["가용자산 합"])} color={C.pink} sub={<ChangePill value={latest["가용자산 합"] - previous["가용자산 합"]} />} />
-        <StatCard label="부채" value={compactWon(latest["부채합계"])} color={C.orange} sub={<ChangePill inverse value={latest["부채합계"] - previous["부채합계"]} />} />
+        <StatCard label="가용자산" value={compactWon(latest["가용자산 합"])} color={C.pink} sub={<ChangePill value={latest["가용자산 합"] - periodStart["가용자산 합"]} label="선택기간 변화" />} />
+        <StatCard label="부채" value={compactWon(latest["부채합계"])} color={C.orange} sub={<ChangePill inverse value={latest["부채합계"] - periodStart["부채합계"]} label="선택기간 변화" />} />
       </div>
 
       <div className="main-grid">
         <Panel>
-          <PanelTitle title="순자산 추이" sub={`${formatDate(records[0].date)} - ${formatDate(latest.date)}`} />
+          <PanelTitle title="순자산 추이" sub={selectedLabel} />
           <ResponsiveContainer width="100%" height={360}>
             <AreaChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
               <defs>
@@ -419,15 +458,15 @@ function AssetOverview({ records }) {
 
       <div className="lower-grid">
         <Panel accent={C.green}>
-          <PanelTitle title="가용자산 월 증감" sub="최근 12개 기록" />
+          <PanelTitle title="가용자산 월 증감" sub="선택기간 기준" />
           <ResponsiveContainer width="100%" height={230}>
-            <BarChart data={data.slice(-12)} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
+            <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
               <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="증감" name="가용자산 증감" radius={[4, 4, 0, 0]}>
-                {data.slice(-12).map((item) => (
+                {data.map((item) => (
                   <Cell key={item.date} fill={(item.증감 || 0) >= 0 ? C.green : C.pink} />
                 ))}
               </Bar>
@@ -436,7 +475,7 @@ function AssetOverview({ records }) {
         </Panel>
 
         <Panel>
-          <PanelTitle title="최근 기록" sub="월별 스냅샷" />
+          <PanelTitle title="선택기간 기록" sub="최근 7개 스냅샷" />
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 620 }}>
               <thead>
@@ -447,7 +486,7 @@ function AssetOverview({ records }) {
                 </tr>
               </thead>
               <tbody>
-                {records.slice(-7).reverse().map((record) => (
+                {selectedRecords.slice(-7).reverse().map((record) => (
                   <tr key={record.rawDate}>
                     <td style={td("left")}>{formatDate(record.date)}</td>
                     <td style={td()}>{compactWon(record["순자산합계"])}</td>
@@ -754,7 +793,10 @@ const NAV = [
 ];
 
 export default function App() {
-  const [page, setPage] = useState("unified");
+  const [page, setPage] = useState(() => {
+    const key = window.location.hash.replace("#", "");
+    return NAV.some((item) => item.key === key) ? key : "unified";
+  });
   const [records, setRecords] = useState([]);
   const [portfolio, setPortfolio] = useState({ holdings: [], history: [] });
   const [error, setError] = useState("");
@@ -837,7 +879,10 @@ export default function App() {
             <button
               key={item.key}
               type="button"
-              onClick={() => setPage(item.key)}
+              onClick={() => {
+                setPage(item.key);
+                window.history.replaceState(null, "", `#${item.key}`);
+              }}
               style={{
                 height: 32,
                 padding: "0 16px",
