@@ -199,6 +199,11 @@ function parsePortfolioRows(rows) {
       SCHD: parseManwon(row[19]),
       GLD: parseManwon(row[20]),
       "현금/채권": parseManwon(row[21]),
+      SPY비중: parseManwon(row[22]),
+      QQQ비중: parseManwon(row[23]),
+      SCHD비중: parseManwon(row[24]),
+      GLD비중: parseManwon(row[25]),
+      현금채권비중: parseManwon(row[26]),
     }))
     .filter((row) => row.date);
 
@@ -831,37 +836,71 @@ function PortfolioView({ portfolio }) {
         </Panel>
       </div>
 
-      <Panel accent={C.violet}>
-        <PanelTitle title="SPY · QQQ · SCHD · GLD 추이" sub={latestHistory ? `최신 기록 ${latestHistory.date}` : "시계열 데이터"} />
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={history} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
-            <CartesianGrid {...GRID} />
-            <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
-            <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => compactManwon(value)} tickLine={false} width={60} />
-            <Tooltip
-              content={({ active, payload, label }) => {
-                if (!active || !payload?.length) return null;
-                return (
-                  <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12 }}>
-                    <div style={{ color: C.blue, fontWeight: 800, marginBottom: 6 }}>{label}</div>
-                    {payload.map((item) => (
-                      <div key={item.dataKey} style={{ color: item.color, marginTop: 3 }}>
-                        {item.dataKey}: {compactManwon(item.value)}
-                      </div>
-                    ))}
-                  </div>
-                );
-              }}
-            />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line type="monotone" dataKey="SPY" stroke={C.blue} strokeWidth={2.5} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="QQQ" stroke={C.violet} strokeWidth={2.5} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="SCHD" stroke={C.green} strokeWidth={2.5} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="GLD" stroke={C.orange} strokeWidth={2.5} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="현금/채권" stroke={C.muted} strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </Panel>
+      <div className="lower-grid">
+        <Panel accent={C.violet}>
+          <PanelTitle title="SPY · QQQ · SCHD · GLD 금액 추이" sub={latestHistory ? `최신 기록 ${latestHistory.date}` : "시계열 데이터"} />
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={history} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => compactManwon(value)} tickLine={false} width={60} />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12 }}>
+                      <div style={{ color: C.blue, fontWeight: 800, marginBottom: 6 }}>{label}</div>
+                      {payload.map((item) => (
+                        <div key={item.dataKey} style={{ color: item.color, marginTop: 3 }}>
+                          {item.dataKey}: {compactManwon(item.value)}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line type="monotone" dataKey="SPY" stroke={C.blue} strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="QQQ" stroke={C.violet} strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="SCHD" stroke={C.green} strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="GLD" stroke={C.orange} strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="현금/채권" stroke={C.muted} strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Panel>
+
+        <Panel accent={C.pink}>
+          <PanelTitle title="각 티커 비중 변화" sub="포트폴리오 내 비중 %" />
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={history} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => `${value}%`} tickLine={false} width={50} />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12 }}>
+                      <div style={{ color: C.pink, fontWeight: 800, marginBottom: 6 }}>{label}</div>
+                      {payload.map((item) => (
+                        <div key={item.dataKey} style={{ color: item.color, marginTop: 3 }}>
+                          {String(item.dataKey).replace("비중", "")}: {(item.value || 0).toFixed(2)}%
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} formatter={(value) => String(value).replace("비중", "")} />
+              <Line type="monotone" dataKey="SPY비중" stroke={C.blue} strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="QQQ비중" stroke={C.violet} strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="SCHD비중" stroke={C.green} strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="GLD비중" stroke={C.orange} strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="현금채권비중" stroke={C.muted} strokeWidth={2} dot={{ r: 3 }} name="현금/채권비중" />
+            </LineChart>
+          </ResponsiveContainer>
+        </Panel>
+      </div>
 
       <Panel>
         <PanelTitle title="상위 보유 종목" sub="철규 + 연희 합산 기준" />
