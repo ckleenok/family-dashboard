@@ -97,6 +97,12 @@ function inputDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function addMonths(date, months) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
 function rowsToRecords(rows) {
   const headers = rows[0].map((header) => header.trim());
   const fields = [
@@ -253,6 +259,22 @@ function dateInputStyle(color) {
   };
 }
 
+function quickButtonStyle(active, color) {
+  return {
+    height: 30,
+    border: `1px solid ${active ? color : C.border}`,
+    borderRadius: 8,
+    background: active ? `${color}18` : "transparent",
+    color: active ? color : C.muted,
+    font: "inherit",
+    fontSize: 12,
+    fontWeight: active ? 800 : 650,
+    padding: "0 10px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+}
+
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -378,6 +400,7 @@ function chartRows(records) {
 function AssetOverview({ records }) {
   const minDate = inputDate(records[0].date);
   const maxDate = inputDate(records.at(-1).date);
+  const quickRanges = [3, 6, 9, 12, 18, 24];
   const [startDate, setStartDate] = useState(minDate);
   const [endDate, setEndDate] = useState(maxDate);
   const safeStartDate = startDate > endDate ? endDate : startDate;
@@ -393,44 +416,83 @@ function AssetOverview({ records }) {
   const selectedLabel = selectedRecords.length
     ? `${formatDate(periodStart.date)} - ${formatDate(latest.date)} · ${selectedRecords.length}개 기록`
     : "선택한 기간에 기록이 없습니다";
+  const activeQuickRange = quickRanges.find((months) => {
+    const quickStart = inputDate(addMonths(records.at(-1).date, -months));
+    const boundedStart = quickStart < minDate ? minDate : quickStart;
+    return safeStartDate === boundedStart && safeEndDate === maxDate;
+  });
+  const applyQuickRange = (months) => {
+    const quickStart = inputDate(addMonths(records.at(-1).date, -months));
+    setStartDate(quickStart < minDate ? minDate : quickStart);
+    setEndDate(maxDate);
+  };
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <Panel accent={C.blue} style={{ padding: "16px 20px" }}>
-        <PanelTitle title="기간 선택" sub={selectedLabel} />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(220px, 1fr))", gap: 14 }}>
-          <label style={{ display: "grid", gap: 8 }}>
-            <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작일</span>
-            <input
-              aria-label="자산현황 시작 날짜"
-              type="date"
-              min={minDate}
-              max={maxDate}
-              value={safeStartDate}
-              onChange={(event) => {
-                const value = event.target.value;
-                setStartDate(value);
-                if (value > endDate) setEndDate(value);
-              }}
-              style={dateInputStyle(C.blue)}
-            />
-          </label>
-          <label style={{ display: "grid", gap: 8 }}>
-            <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료일</span>
-            <input
-              aria-label="자산현황 종료 날짜"
-              type="date"
-              min={minDate}
-              max={maxDate}
-              value={safeEndDate}
-              onChange={(event) => {
-                const value = event.target.value;
-                setEndDate(value);
-                if (value < startDate) setStartDate(value);
-              }}
-              style={dateInputStyle(C.pink)}
-            />
-          </label>
+      <Panel accent={C.blue} style={{ padding: "14px 16px", width: "min(100%, 980px)" }}>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.25 }}>기간 선택</h2>
+              <div style={{ marginTop: 4, color: C.muted, fontSize: 12 }}>{selectedLabel}</div>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {quickRanges.map((months) => (
+                <button
+                  key={months}
+                  type="button"
+                  onClick={() => applyQuickRange(months)}
+                  style={quickButtonStyle(activeQuickRange === months, C.blue)}
+                >
+                  지난 {months}개월
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate(minDate);
+                  setEndDate(maxDate);
+                }}
+                style={quickButtonStyle(safeStartDate === minDate && safeEndDate === maxDate, C.green)}
+              >
+                전체
+              </button>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(180px, 240px))", gap: 12 }}>
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작일</span>
+              <input
+                aria-label="자산현황 시작 날짜"
+                type="date"
+                min={minDate}
+                max={maxDate}
+                value={safeStartDate}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setStartDate(value);
+                  if (value > endDate) setEndDate(value);
+                }}
+                style={dateInputStyle(C.blue)}
+              />
+            </label>
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료일</span>
+              <input
+                aria-label="자산현황 종료 날짜"
+                type="date"
+                min={minDate}
+                max={maxDate}
+                value={safeEndDate}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setEndDate(value);
+                  if (value < startDate) setStartDate(value);
+                }}
+                style={dateInputStyle(C.pink)}
+              />
+            </label>
+          </div>
         </div>
       </Panel>
 
