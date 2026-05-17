@@ -500,16 +500,13 @@ function StockOverview({ records }) {
   );
 }
 
-function UnifiedView({ records }) {
+function UnifiedView({ records, portfolio }) {
   const latest = records.at(-1);
   const previous = records.at(-2) || latest;
-  const mix = [
-    { name: "현금성", value: latest["현금성자산"], color: C.green },
-    { name: "주식", value: latest["주식"], color: C.blue },
-    { name: "불가용", value: latest["불가용자산"], color: C.orange },
-    { name: "부동산", value: latest["부동산"], color: C.violet },
-  ];
   const total = latest["자산합계"] || 0;
+  const ckTotal = portfolio.holdings.reduce((sum, item) => sum + item.ck, 0);
+  const ellaTotal = portfolio.holdings.reduce((sum, item) => sum + item.ella, 0);
+  const portfolioTotal = ckTotal + ellaTotal;
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -525,22 +522,16 @@ function UnifiedView({ records }) {
           <AssetBars latest={latest} />
         </Panel>
         <Panel accent={C.pink}>
-          <PanelTitle title="자산 비중" sub={`${formatDate(latest.date)} 기준`} />
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={mix} layout="vertical" margin={{ top: 4, right: 26, bottom: 0, left: 8 }}>
-              <CartesianGrid {...GRID} />
-              <XAxis type="number" tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} />
-              <YAxis type="category" dataKey="name" tick={{ fill: C.muted, fontSize: 12 }} tickLine={false} width={52} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" name="금액" radius={[0, 4, 4, 0]}>
-                {mix.map((item) => <Cell key={item.name} fill={item.color} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <PanelTitle title="포트폴리오 소유자 구분" sub={`총 ${compactManwon(portfolioTotal)}`} />
+          <PortfolioBars
+            rows={[
+              { name: "철규", amount: ckTotal, color: C.blue },
+              { name: "연희", amount: ellaTotal, color: C.pink },
+            ]}
+            total={portfolioTotal}
+          />
         </Panel>
       </div>
-
-      <AssetOverview records={records} />
     </div>
   );
 }
@@ -557,6 +548,26 @@ function groupedRows(items, key, palette) {
   return Object.entries(sumBy(items, key))
     .map(([name, amount], index) => ({ name, amount, color: palette[index % palette.length] }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+function ownerCategoryRows(holdings) {
+  const groups = {};
+  holdings.forEach((item) => {
+    if (!groups[item.category]) groups[item.category] = { category: item.category, 철규: 0, 연희: 0 };
+    groups[item.category].철규 += item.ck;
+    groups[item.category].연희 += item.ella;
+  });
+  return Object.values(groups).sort((a, b) => b.철규 + b.연희 - (a.철규 + a.연희));
+}
+
+function ownerRegionRows(holdings) {
+  return ["철규", "연희"].map((owner) => {
+    const row = { owner };
+    holdings.forEach((item) => {
+      row[item.region] = (row[item.region] || 0) + (owner === "철규" ? item.ck : item.ella);
+    });
+    return row;
+  });
 }
 
 function PortfolioBars({ rows, total }) {
@@ -588,6 +599,8 @@ function PortfolioView({ portfolio }) {
   const topHoldings = [...holdings].sort((a, b) => b.amount - a.amount).slice(0, 10);
   const categoryRows = groupedRows(holdings, "category", [C.green, C.orange, C.violet, C.pink, C.blue]);
   const regionRows = groupedRows(holdings, "region", [C.blue, C.violet, C.orange]);
+  const byOwnerCategory = ownerCategoryRows(holdings);
+  const byOwnerRegion = ownerRegionRows(holdings);
   const latestHistory = history.at(-1);
 
   return (
@@ -606,6 +619,67 @@ function PortfolioView({ portfolio }) {
         <Panel accent={C.orange}>
           <PanelTitle title="지역별 포트폴리오" sub="한국 · 중립 · 미국" />
           <PortfolioBars rows={regionRows} total={total} />
+        </Panel>
+      </div>
+
+      <div className="lower-grid">
+        <Panel accent={C.blue}>
+          <PanelTitle title="철규/연희 카테고리별 보유" sub="소유자별 금액 분리" />
+          <ResponsiveContainer width="100%" height={270}>
+            <BarChart data={byOwnerCategory} margin={{ top: 8, right: 14, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="category" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => compactManwon(value)} tickLine={false} width={60} />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12 }}>
+                      <div style={{ color: C.blue, fontWeight: 800, marginBottom: 6 }}>{label}</div>
+                      {payload.map((item) => (
+                        <div key={item.dataKey} style={{ color: item.color, marginTop: 3 }}>
+                          {item.dataKey}: {compactManwon(item.value)}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="철규" stackId="owner" fill={C.blue} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="연희" stackId="owner" fill={C.pink} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Panel>
+
+        <Panel accent={C.pink}>
+          <PanelTitle title="철규/연희 지역별 보유" sub="한국 · 중립 · 미국" />
+          <ResponsiveContainer width="100%" height={270}>
+            <BarChart data={byOwnerRegion} margin={{ top: 8, right: 14, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="owner" tick={{ fill: C.muted, fontSize: 12 }} tickLine={false} />
+              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => compactManwon(value)} tickLine={false} width={60} />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12 }}>
+                      <div style={{ color: C.pink, fontWeight: 800, marginBottom: 6 }}>{label}</div>
+                      {payload.map((item) => (
+                        <div key={item.dataKey} style={{ color: item.color, marginTop: 3 }}>
+                          {item.dataKey}: {compactManwon(item.value)}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="한국" stackId="region" fill={C.blue} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="중립" stackId="region" fill={C.violet} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="미국" stackId="region" fill={C.orange} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Panel>
       </div>
 
@@ -788,7 +862,7 @@ export default function App() {
         {!error && records.length > 0 && page === "asset" && <AssetOverview records={records} />}
         {!error && records.length > 0 && page === "stock" && <StockOverview records={records} />}
         {!error && records.length > 0 && page === "portfolio" && <PortfolioView portfolio={portfolio} />}
-        {!error && records.length > 0 && page === "unified" && <UnifiedView records={records} />}
+        {!error && records.length > 0 && page === "unified" && <UnifiedView records={records} portfolio={portfolio} />}
         <div style={{ marginTop: 24, color: C.muted, fontSize: 10, textAlign: "right" }}>
           데이터 출처: Google Sheets · 금액 단위: 원
         </div>
