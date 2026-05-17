@@ -4,6 +4,7 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  ComposedChart,
   CartesianGrid,
   Cell,
   Legend,
@@ -119,6 +120,7 @@ function rowsToRecords(rows) {
     "순자산-목표순자산",
   ];
   const indexes = Object.fromEntries(fields.map((name) => [name, headers.lastIndexOf(name)]));
+  if (headers[39]?.trim() === "목표순자산") indexes["목표순자산"] = 39;
 
   return rows
     .slice(1)
@@ -413,6 +415,10 @@ function AssetOverview({ records }) {
   const periodStart = selectedRecords[0] || latest;
   const data = chartRows(selectedRecords);
   const goalRate = latest["목표순자산"] ? latest["순자산합계"] / latest["목표순자산"] : 0;
+  const netChartMax = Math.max(
+    1100000000,
+    Math.ceil(Math.max(...data.flatMap((item) => [item.순자산 || 0, item.목표 || 0])) / 100000000) * 100000000
+  );
   const selectedLabel = selectedRecords.length
     ? `${formatDate(periodStart.date)} - ${formatDate(latest.date)} · ${selectedRecords.length}개 기록`
     : "선택한 기간에 기록이 없습니다";
@@ -516,7 +522,7 @@ function AssetOverview({ records }) {
         <Panel>
           <PanelTitle title="순자산 추이" sub={selectedLabel} />
           <ResponsiveContainer width="100%" height={360}>
-            <AreaChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+            <ComposedChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
               <defs>
                 <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={C.blue} stopOpacity={0.35} />
@@ -525,11 +531,11 @@ function AssetOverview({ records }) {
               </defs>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" interval={3} tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
-              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
+              <YAxis domain={[1000000000, netChartMax]} tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="순자산" name="순자산" stroke={C.blue} fill="url(#netFill)" strokeWidth={2.5} dot={false} />
-              <Line type="monotone" dataKey="목표" name="목표" stroke={C.pink} strokeWidth={2} dot={false} />
-            </AreaChart>
+              <Line type="monotone" dataKey="목표" name="목표 순자산" stroke={C.pink} strokeWidth={3} strokeDasharray="6 4" dot={false} />
+            </ComposedChart>
           </ResponsiveContainer>
         </Panel>
 
