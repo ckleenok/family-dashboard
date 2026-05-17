@@ -93,6 +93,10 @@ function formatDate(date) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function inputDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function rowsToRecords(rows) {
   const headers = rows[0].map((header) => header.trim());
   const fields = [
@@ -233,6 +237,22 @@ function td(textAlign = "right") {
   };
 }
 
+function dateInputStyle(color) {
+  return {
+    height: 38,
+    width: "100%",
+    border: `1px solid ${C.border}`,
+    borderRadius: 8,
+    background: "#0a101c",
+    color: C.text,
+    colorScheme: "dark",
+    font: "inherit",
+    fontSize: 13,
+    padding: "0 12px",
+    outlineColor: color,
+  };
+}
+
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -356,49 +376,61 @@ function chartRows(records) {
 }
 
 function AssetOverview({ records }) {
-  const [startIndex, setStartIndex] = useState(0);
-  const [endIndex, setEndIndex] = useState(records.length - 1);
-  const safeStart = Math.min(startIndex, records.length - 1);
-  const safeEnd = Math.min(Math.max(endIndex, safeStart), records.length - 1);
-  const selectedRecords = records.slice(safeStart, safeEnd + 1);
+  const minDate = inputDate(records[0].date);
+  const maxDate = inputDate(records.at(-1).date);
+  const [startDate, setStartDate] = useState(minDate);
+  const [endDate, setEndDate] = useState(maxDate);
+  const safeStartDate = startDate > endDate ? endDate : startDate;
+  const safeEndDate = endDate < safeStartDate ? safeStartDate : endDate;
+  const selectedRecords = records.filter((record) => {
+    const current = inputDate(record.date);
+    return current >= safeStartDate && current <= safeEndDate;
+  });
   const latest = selectedRecords.at(-1);
   const periodStart = selectedRecords[0] || latest;
   const data = chartRows(selectedRecords);
   const goalRate = latest["목표순자산"] ? latest["순자산합계"] / latest["목표순자산"] : 0;
-  const maxIndex = records.length - 1;
-  const selectedLabel = `${formatDate(records[safeStart].date)} - ${formatDate(records[safeEnd].date)} · ${selectedRecords.length}개 기록`;
+  const selectedLabel = selectedRecords.length
+    ? `${formatDate(periodStart.date)} - ${formatDate(latest.date)} · ${selectedRecords.length}개 기록`
+    : "선택한 기간에 기록이 없습니다";
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <Panel accent={C.blue} style={{ padding: "16px 20px" }}>
         <PanelTitle title="기간 선택" sub={selectedLabel} />
-        <div style={{ display: "grid", gap: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "80px minmax(0, 1fr) 112px", gap: 12, alignItems: "center" }}>
-            <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작</span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(220px, 1fr))", gap: 14 }}>
+          <label style={{ display: "grid", gap: 8 }}>
+            <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작일</span>
             <input
               aria-label="자산현황 시작 날짜"
-              type="range"
-              min="0"
-              max={maxIndex}
-              value={safeStart}
-              onChange={(event) => setStartIndex(Math.min(Number(event.target.value), safeEnd))}
-              style={{ width: "100%", accentColor: C.blue }}
+              type="date"
+              min={minDate}
+              max={maxDate}
+              value={safeStartDate}
+              onChange={(event) => {
+                const value = event.target.value;
+                setStartDate(value);
+                if (value > endDate) setEndDate(value);
+              }}
+              style={dateInputStyle(C.blue)}
             />
-            <span style={{ color: C.text, fontSize: 12, textAlign: "right" }}>{formatDate(records[safeStart].date)}</span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "80px minmax(0, 1fr) 112px", gap: 12, alignItems: "center" }}>
-            <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료</span>
+          </label>
+          <label style={{ display: "grid", gap: 8 }}>
+            <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료일</span>
             <input
               aria-label="자산현황 종료 날짜"
-              type="range"
-              min="0"
-              max={maxIndex}
-              value={safeEnd}
-              onChange={(event) => setEndIndex(Math.max(Number(event.target.value), safeStart))}
-              style={{ width: "100%", accentColor: C.pink }}
+              type="date"
+              min={minDate}
+              max={maxDate}
+              value={safeEndDate}
+              onChange={(event) => {
+                const value = event.target.value;
+                setEndDate(value);
+                if (value < startDate) setStartDate(value);
+              }}
+              style={dateInputStyle(C.pink)}
             />
-            <span style={{ color: C.text, fontSize: 12, textAlign: "right" }}>{formatDate(records[safeEnd].date)}</span>
-          </div>
+          </label>
         </div>
       </Panel>
 
