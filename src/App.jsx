@@ -19,6 +19,8 @@ import {
 
 const SHEET_CSV_URL =
   "https://docs.google.com/spreadsheets/d/1HM_Jxv6zQzr-O5Spt06uq2HTyX1yFTVju2jzVjneL5M/export?format=csv&gid=462380555";
+const PORTFOLIO_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/1HM_Jxv6zQzr-O5Spt06uq2HTyX1yFTVju2jzVjneL5M/export?format=csv&gid=172728277";
 
 const C = {
   bg: "#070b14",
@@ -121,6 +123,76 @@ function rowsToRecords(rows) {
     .sort((a, b) => a.date - b.date);
 }
 
+function parseManwon(raw) {
+  const cleaned = String(raw ?? "")
+    .replace(/[₩,%]/g, "")
+    .replaceAll(",", "")
+    .trim();
+  if (!cleaned || cleaned === "-") return 0;
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function normalizeSheetDate(raw) {
+  const parts = String(raw ?? "")
+    .replaceAll(" ", "")
+    .replace(/\.$/, "")
+    .split(".")
+    .filter(Boolean)
+    .map(Number);
+  if (parts.length < 3) return "";
+  return `${String(parts[0]).padStart(2, "0")}.${String(parts[1]).padStart(2, "0")}.${String(parts[2]).padStart(2, "0")}`;
+}
+
+function parsePortfolioRows(rows) {
+  const regions = [
+    { key: "한국", nameIndex: 3, ckIndex: 4, ellaIndex: 5, color: C.blue },
+    { key: "중립", nameIndex: 6, ckIndex: 7, ellaIndex: 8, color: C.violet },
+    { key: "미국", nameIndex: 9, ckIndex: 10, ellaIndex: 11, color: C.orange },
+  ];
+  const holdings = [];
+  let category = "";
+
+  rows.slice(2).forEach((row) => {
+    if (row[1]?.trim()) category = row[1].trim();
+    const subCategory = row[2]?.trim() || category;
+    const isSummary = subCategory === "합계" || subCategory === "총합" || subCategory === "비중";
+    if (!category || isSummary) return;
+
+    regions.forEach((region) => {
+      const name = row[region.nameIndex]?.trim();
+      const ck = parseManwon(row[region.ckIndex]);
+      const ella = parseManwon(row[region.ellaIndex]);
+      if (!name || (!ck && !ella)) return;
+      holdings.push({
+        category,
+        subCategory,
+        region: region.key,
+        color: region.color,
+        name,
+        ck,
+        ella,
+        amount: ck + ella,
+      });
+    });
+  });
+
+  const history = rows
+    .slice(1)
+    .filter((row) => row[16]?.trim())
+    .map((row) => ({
+      date: normalizeSheetDate(row[16]),
+      SPY: parseManwon(row[17]),
+      QQQ: parseManwon(row[18]),
+      SCHD: parseManwon(row[19]),
+      GLD: parseManwon(row[20]),
+      "현금/채권": parseManwon(row[21]),
+    }))
+    .filter((row) => row.date);
+
+  return { holdings, history };
+}
+
 const won = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 });
 
 function money(value) {
@@ -133,6 +205,14 @@ function compactWon(value) {
   if (abs >= 100000000) return `${(value / 100000000).toFixed(abs >= 1000000000 ? 1 : 2)}억`;
   if (abs >= 10000) return `${Math.round(value / 10000).toLocaleString("ko-KR")}만`;
   return won.format(Math.round(value || 0));
+}
+
+function manwonToWon(value) {
+  return (value || 0) * 10000;
+}
+
+function compactManwon(value) {
+  return compactWon(manwonToWon(value));
 }
 
 function axisWon(value) {
@@ -465,24 +545,161 @@ function UnifiedView({ records }) {
   );
 }
 
+function sumBy(items, key) {
+  return items.reduce((acc, item) => {
+    const group = item[key] || "기타";
+    acc[group] = (acc[group] || 0) + item.amount;
+    return acc;
+  }, {});
+}
+
+function groupedRows(items, key, palette) {
+  return Object.entries(sumBy(items, key))
+    .map(([name, amount], index) => ({ name, amount, color: palette[index % palette.length] }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
+function PortfolioBars({ rows, total }) {
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      {rows.map((row) => {
+        const ratio = total ? row.amount / total : 0;
+        return (
+          <div key={row.name}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
+              <span style={{ color: row.color, fontWeight: 800 }}>{row.name}</span>
+              <span style={{ color: C.muted }}>{compactManwon(row.amount)} · {percent(ratio)}</span>
+            </div>
+            <div style={{ height: 5, background: C.dim, borderRadius: 999, overflow: "hidden" }}>
+              <div style={{ width: `${ratio * 100}%`, height: "100%", background: row.color }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PortfolioView({ portfolio }) {
+  const { holdings, history } = portfolio;
+  const total = holdings.reduce((sum, item) => sum + item.amount, 0);
+  const ckTotal = holdings.reduce((sum, item) => sum + item.ck, 0);
+  const ellaTotal = holdings.reduce((sum, item) => sum + item.ella, 0);
+  const topHoldings = [...holdings].sort((a, b) => b.amount - a.amount).slice(0, 10);
+  const categoryRows = groupedRows(holdings, "category", [C.green, C.orange, C.violet, C.pink, C.blue]);
+  const regionRows = groupedRows(holdings, "region", [C.blue, C.violet, C.orange]);
+  const latestHistory = history.at(-1);
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <div className="three-grid">
+        <StatCard label="포트폴리오 총액" value={compactManwon(total)} color={C.green} sub={`${holdings.length}개 보유 항목`} />
+        <StatCard label="철규 보유" value={compactManwon(ckTotal)} color={C.blue} sub={`전체의 ${percent(ckTotal / total)}`} />
+        <StatCard label="연희 보유" value={compactManwon(ellaTotal)} color={C.pink} sub={`전체의 ${percent(ellaTotal / total)}`} />
+      </div>
+
+      <div className="lower-grid">
+        <Panel accent={C.green}>
+          <PanelTitle title="카테고리별 포트폴리오" sub="금액 및 비중" />
+          <PortfolioBars rows={categoryRows} total={total} />
+        </Panel>
+        <Panel accent={C.orange}>
+          <PanelTitle title="지역별 포트폴리오" sub="한국 · 중립 · 미국" />
+          <PortfolioBars rows={regionRows} total={total} />
+        </Panel>
+      </div>
+
+      <Panel accent={C.violet}>
+        <PanelTitle title="SPY · QQQ · SCHD · GLD 추이" sub={latestHistory ? `최신 기록 ${latestHistory.date}` : "시계열 데이터"} />
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={history} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+            <CartesianGrid {...GRID} />
+            <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+            <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => compactManwon(value)} tickLine={false} width={60} />
+            <Tooltip
+              content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                return (
+                  <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12 }}>
+                    <div style={{ color: C.blue, fontWeight: 800, marginBottom: 6 }}>{label}</div>
+                    {payload.map((item) => (
+                      <div key={item.dataKey} style={{ color: item.color, marginTop: 3 }}>
+                        {item.dataKey}: {compactManwon(item.value)}
+                      </div>
+                    ))}
+                  </div>
+                );
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Line type="monotone" dataKey="SPY" stroke={C.blue} strokeWidth={2.5} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="QQQ" stroke={C.violet} strokeWidth={2.5} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="SCHD" stroke={C.green} strokeWidth={2.5} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="GLD" stroke={C.orange} strokeWidth={2.5} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="현금/채권" stroke={C.muted} strokeWidth={2} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </Panel>
+
+      <Panel>
+        <PanelTitle title="상위 보유 종목" sub="철규 + 연희 합산 기준" />
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 720 }}>
+            <thead>
+              <tr style={{ color: C.muted }}>
+                {["종목", "카테고리", "지역", "철규", "연희", "합계", "비중"].map((head) => (
+                  <th key={head} style={{ textAlign: head === "종목" ? "left" : "right", padding: "10px 8px", borderBottom: `1px solid ${C.border}` }}>{head}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {topHoldings.map((item) => (
+                <tr key={`${item.region}-${item.name}`}>
+                  <td style={td("left")}>{item.name}</td>
+                  <td style={td()}>{item.subCategory}</td>
+                  <td style={{ ...td(), color: item.color }}>{item.region}</td>
+                  <td style={td()}>{compactManwon(item.ck)}</td>
+                  <td style={td()}>{compactManwon(item.ella)}</td>
+                  <td style={td()}>{compactManwon(item.amount)}</td>
+                  <td style={td()}>{percent(item.amount / total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 const NAV = [
   { key: "asset", label: "자산현황", color: C.green },
   { key: "stock", label: "주식현황", color: C.violet },
+  { key: "portfolio", label: "포트폴리오", color: C.orange },
   { key: "unified", label: "통합뷰", color: C.blue },
 ];
 
 export default function App() {
   const [page, setPage] = useState("unified");
   const [records, setRecords] = useState([]);
+  const [portfolio, setPortfolio] = useState({ holdings: [], history: [] });
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(SHEET_CSV_URL, { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Google Sheets CSV 응답 오류: ${response.status}`);
+    Promise.all([
+      fetch(SHEET_CSV_URL, { cache: "no-store" }).then((response) => {
+        if (!response.ok) throw new Error(`자산 시트 CSV 응답 오류: ${response.status}`);
         return response.text();
+      }),
+      fetch(PORTFOLIO_CSV_URL, { cache: "no-store" }).then((response) => {
+        if (!response.ok) throw new Error(`포트폴리오 시트 CSV 응답 오류: ${response.status}`);
+        return response.text();
+      }),
+    ])
+      .then(([assetText, portfolioText]) => {
+        setRecords(rowsToRecords(parseCsv(assetText)));
+        setPortfolio(parsePortfolioRows(parseCsv(portfolioText)));
       })
-      .then((text) => setRecords(rowsToRecords(parseCsv(text))))
       .catch((err) => setError(err.message));
   }, []);
 
@@ -570,6 +787,7 @@ export default function App() {
         {!error && !records.length && <Panel><PanelTitle title="데이터 로딩 중" sub="Google Sheets CSV를 불러오고 있습니다." /></Panel>}
         {!error && records.length > 0 && page === "asset" && <AssetOverview records={records} />}
         {!error && records.length > 0 && page === "stock" && <StockOverview records={records} />}
+        {!error && records.length > 0 && page === "portfolio" && <PortfolioView portfolio={portfolio} />}
         {!error && records.length > 0 && page === "unified" && <UnifiedView records={records} />}
         <div style={{ marginTop: 24, color: C.muted, fontSize: 10, textAlign: "right" }}>
           데이터 출처: Google Sheets · 금액 단위: 원
