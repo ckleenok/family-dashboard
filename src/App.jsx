@@ -111,6 +111,8 @@ function rowsToRecords(rows) {
     "주식",
     "가용자산 합",
     "가용자산 증감",
+    "나이키주식",
+    "미래 퇴직연금",
     "불가용자산",
     "부동산",
     "자산합계",
@@ -120,6 +122,8 @@ function rowsToRecords(rows) {
     "순자산-목표순자산",
   ];
   const indexes = Object.fromEntries(fields.map((name) => [name, headers.lastIndexOf(name)]));
+  if (headers[26]?.trim() === "나이키주식") indexes["나이키주식"] = 26;
+  if (headers[27]?.trim() === "미래 퇴직연금") indexes["미래 퇴직연금"] = 27;
   if (headers[39]?.trim() === "목표순자산") indexes["목표순자산"] = 39;
 
   return rows
@@ -361,13 +365,13 @@ function StatCard({ label, value, sub, color }) {
   );
 }
 
-function AssetBars({ latest }) {
-  const items = [
+function AssetBars({ latest, items: customItems }) {
+  const items = (customItems || [
     { name: "현금성", value: latest["현금성자산"], color: C.green },
     { name: "주식", value: latest["주식"], color: C.blue },
     { name: "불가용", value: latest["불가용자산"], color: C.orange },
     { name: "부동산", value: latest["부동산"], color: C.violet },
-  ].filter((item) => Number.isFinite(item.value) && item.value > 0);
+  ]).filter((item) => Number.isFinite(item.value) && item.value > 0);
   const total = latest["자산합계"] || items.reduce((sum, item) => sum + item.value, 0);
 
   return (
@@ -399,6 +403,8 @@ function chartRows(records) {
     부채: record["부채합계"],
     가용자산: record["가용자산 합"],
     증감: record["가용자산 증감"],
+    나이키주식: record["나이키주식"],
+    미래퇴직연금: record["미래 퇴직연금"],
     주식: record["주식"],
     현금성: record["현금성자산"],
   }));
@@ -567,6 +573,38 @@ function AssetOverview({ records }) {
             </PieChart>
           </ResponsiveContainer>
           <AssetBars latest={latest} />
+        </Panel>
+      </div>
+
+      <div className="lower-grid">
+        <Panel accent={C.orange}>
+          <PanelTitle title="추가 자산 항목" sub="AA · AB 컬럼 기준" />
+          <AssetBars
+            latest={{
+              "나이키주식": latest["나이키주식"],
+              "미래 퇴직연금": latest["미래 퇴직연금"],
+              "자산합계": latest["자산합계"],
+            }}
+            items={[
+              { name: "나이키주식", value: latest["나이키주식"], color: C.orange },
+              { name: "미래 퇴직연금", value: latest["미래 퇴직연금"], color: C.violet },
+            ]}
+          />
+        </Panel>
+
+        <Panel accent={C.orange}>
+          <PanelTitle title="나이키주식 · 미래 퇴직연금 추이" sub="선택기간 기준" />
+          <ResponsiveContainer width="100%" height={230}>
+            <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line type="monotone" dataKey="나이키주식" name="나이키주식" stroke={C.orange} strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="미래퇴직연금" name="미래 퇴직연금" stroke={C.violet} strokeWidth={2.5} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
         </Panel>
       </div>
 
