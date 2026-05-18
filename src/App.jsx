@@ -254,6 +254,14 @@ function axisWon(value) {
   return `${Math.round(value / 100000000)}억`;
 }
 
+function axisWonFine(value) {
+  if (!value) return "0";
+  if (value >= 100000000) {
+    return `${(value / 100000000).toFixed(value % 100000000 === 0 ? 0 : 1)}억`;
+  }
+  return `${Math.round(value / 10000000)}천만`;
+}
+
 function percent(value) {
   return `${((value || 0) * 100).toFixed(1)}%`;
 }
@@ -698,6 +706,24 @@ function StockOverview({ records }) {
   const stockDetailTotal = stockDetailItems.reduce((sum, item) => sum + item.value, 0);
   const ellaStockTotal = (latest["연희 토스 주식"] || 0) + (latest["연희 미래 ISA/연금"] || 0);
   const ckStockTotal = stockDetailTotal - ellaStockTotal;
+  const stockDetailMax = Math.max(
+    10000000,
+    ...data.flatMap((item) => [
+      item.연희토스주식 || 0,
+      item.연희미래ISA연금 || 0,
+      item.철규미래ISA || 0,
+      item.철규토스주식 || 0,
+      item.카카오주식 || 0,
+      item.미래연금저축 || 0,
+      item.미래IRP || 0,
+    ])
+  );
+  const stockDetailTickStep = stockDetailMax > 80000000 ? 25000000 : 10000000;
+  const stockDetailAxisMax = Math.ceil(stockDetailMax / stockDetailTickStep) * stockDetailTickStep;
+  const stockDetailTicks = Array.from(
+    { length: Math.floor(stockDetailAxisMax / stockDetailTickStep) + 1 },
+    (_, index) => index * stockDetailTickStep
+  );
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -750,7 +776,14 @@ function StockOverview({ records }) {
             <LineChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" interval={3} tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
-              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
+              <YAxis
+                domain={[0, stockDetailAxisMax]}
+                ticks={stockDetailTicks}
+                tick={{ fill: C.muted, fontSize: 11 }}
+                tickFormatter={axisWonFine}
+                tickLine={false}
+                width={58}
+              />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Line type="monotone" dataKey="연희토스주식" name="연희 토스" stroke={C.pink} strokeWidth={2.2} dot={false} />
