@@ -692,7 +692,9 @@ function StockOverview({ records }) {
     { name: "카카오 주식", value: latest["카카오 주식"], color: C.orange },
     { name: "미래 연금저축", value: latest["미래 연금저축"], color: "#f59e0b" },
     { name: "미래IRP", value: latest["미래IRP"], color: C.muted },
-  ].filter((item) => Number.isFinite(item.value) && item.value > 0);
+  ]
+    .filter((item) => Number.isFinite(item.value) && item.value > 0)
+    .sort((a, b) => b.value - a.value);
   const stockDetailTotal = stockDetailItems.reduce((sum, item) => sum + item.value, 0);
   const ellaStockTotal = (latest["연희 토스 주식"] || 0) + (latest["연희 미래 ISA/연금"] || 0);
   const ckStockTotal = stockDetailTotal - ellaStockTotal;
