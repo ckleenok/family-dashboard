@@ -109,6 +109,13 @@ function rowsToRecords(rows) {
   const fields = [
     "현금성자산",
     "주식",
+    "연희 토스 주식",
+    "연희 미래 ISA/연금",
+    "철규 미래 ISA",
+    "철규 토스 주식",
+    "카카오 주식",
+    "미래 연금저축",
+    "미래IRP",
     "가용자산 합",
     "가용자산 증감",
     "나이키주식",
@@ -122,6 +129,13 @@ function rowsToRecords(rows) {
     "순자산-목표순자산",
   ];
   const indexes = Object.fromEntries(fields.map((name) => [name, headers.lastIndexOf(name)]));
+  if (headers[15]?.trim() === "연희 토스 주식") indexes["연희 토스 주식"] = 15;
+  if (headers[16]?.trim() === "연희 미래 ISA/연금") indexes["연희 미래 ISA/연금"] = 16;
+  if (headers[18]?.trim() === "철규 미래 ISA") indexes["철규 미래 ISA"] = 18;
+  if (headers[19]?.trim() === "철규 토스 주식") indexes["철규 토스 주식"] = 19;
+  if (headers[20]?.trim() === "카카오 주식") indexes["카카오 주식"] = 20;
+  if (headers[21]?.trim() === "미래 연금저축") indexes["미래 연금저축"] = 21;
+  if (headers[22]?.trim() === "미래IRP") indexes["미래IRP"] = 22;
   if (headers[26]?.trim() === "나이키주식") indexes["나이키주식"] = 26;
   if (headers[27]?.trim() === "미래 퇴직연금") indexes["미래 퇴직연금"] = 27;
   if (headers[39]?.trim() === "목표순자산") indexes["목표순자산"] = 39;
@@ -403,6 +417,13 @@ function chartRows(records) {
     부채: record["부채합계"],
     가용자산: record["가용자산 합"],
     증감: record["가용자산 증감"],
+    연희토스주식: record["연희 토스 주식"],
+    연희미래ISA연금: record["연희 미래 ISA/연금"],
+    철규미래ISA: record["철규 미래 ISA"],
+    철규토스주식: record["철규 토스 주식"],
+    카카오주식: record["카카오 주식"],
+    미래연금저축: record["미래 연금저축"],
+    미래IRP: record["미래IRP"],
     나이키주식: record["나이키주식"],
     미래퇴직연금: record["미래 퇴직연금"],
     주식: record["주식"],
@@ -663,6 +684,18 @@ function StockOverview({ records }) {
   const data = chartRows(records);
   const stockRatio = latest["자산합계"] ? latest["주식"] / latest["자산합계"] : 0;
   const liquidRatio = latest["가용자산 합"] ? latest["주식"] / latest["가용자산 합"] : 0;
+  const stockDetailItems = [
+    { name: "연희 토스 주식", value: latest["연희 토스 주식"], color: C.pink },
+    { name: "연희 미래 ISA/연금", value: latest["연희 미래 ISA/연금"], color: C.violet },
+    { name: "철규 미래 ISA", value: latest["철규 미래 ISA"], color: C.blue },
+    { name: "철규 토스 주식", value: latest["철규 토스 주식"], color: C.green },
+    { name: "카카오 주식", value: latest["카카오 주식"], color: C.orange },
+    { name: "미래 연금저축", value: latest["미래 연금저축"], color: "#f59e0b" },
+    { name: "미래IRP", value: latest["미래IRP"], color: C.muted },
+  ].filter((item) => Number.isFinite(item.value) && item.value > 0);
+  const stockDetailTotal = stockDetailItems.reduce((sum, item) => sum + item.value, 0);
+  const ellaStockTotal = (latest["연희 토스 주식"] || 0) + (latest["연희 미래 ISA/연금"] || 0);
+  const ckStockTotal = stockDetailTotal - ellaStockTotal;
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -687,6 +720,48 @@ function StockOverview({ records }) {
           </LineChart>
         </ResponsiveContainer>
       </Panel>
+
+      <div className="lower-grid">
+        <Panel accent={C.blue}>
+          <PanelTitle title="주식 세부 구성" sub={`P/Q/S/T/U/V/W 합계 ${compactWon(stockDetailTotal)}`} />
+          <AssetBars
+            latest={{ 자산합계: stockDetailTotal }}
+            items={stockDetailItems}
+          />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 18 }}>
+            {[
+              { label: "연희 주식", value: ellaStockTotal, color: C.pink },
+              { label: "철규/기타 주식", value: ckStockTotal, color: C.blue },
+            ].map((item) => (
+              <div key={item.label} style={{ borderTop: `2px solid ${item.color}`, paddingTop: 10 }}>
+                <div style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>{item.label}</div>
+                <div style={{ color: item.color, fontSize: 22, fontWeight: 900, marginTop: 6 }}>{compactWon(item.value)}</div>
+                <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>세부 구성의 {percent(item.value / stockDetailTotal)}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel accent={C.pink}>
+          <PanelTitle title="주식 세부 항목 추이" sub="P/Q/S/T/U/V/W 컬럼 기준" />
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="date" interval={3} tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line type="monotone" dataKey="연희토스주식" name="연희 토스" stroke={C.pink} strokeWidth={2.2} dot={false} />
+              <Line type="monotone" dataKey="연희미래ISA연금" name="연희 미래 ISA/연금" stroke={C.violet} strokeWidth={2.2} dot={false} />
+              <Line type="monotone" dataKey="철규미래ISA" name="철규 미래 ISA" stroke={C.blue} strokeWidth={2.2} dot={false} />
+              <Line type="monotone" dataKey="철규토스주식" name="철규 토스" stroke={C.green} strokeWidth={2.2} dot={false} />
+              <Line type="monotone" dataKey="카카오주식" name="카카오 주식" stroke={C.orange} strokeWidth={2.2} dot={false} />
+              <Line type="monotone" dataKey="미래연금저축" name="미래 연금저축" stroke="#f59e0b" strokeWidth={2.2} dot={false} />
+              <Line type="monotone" dataKey="미래IRP" name="미래IRP" stroke={C.muted} strokeWidth={2.2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Panel>
+      </div>
     </div>
   );
 }
