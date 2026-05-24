@@ -751,6 +751,14 @@ function StockOverview({ records }) {
       ticks: [-axisMax, 0, axisMax],
     };
   });
+  const nikeRetirementAxisMax = Math.max(
+    50000000,
+    Math.ceil(Math.max(...data.flatMap((item) => [item.나이키주식 || 0, item.미래퇴직연금 || 0])) / 50000000) * 50000000
+  );
+  const nikeRetirementTicks = Array.from(
+    { length: Math.floor(nikeRetirementAxisMax / 50000000) + 1 },
+    (_, index) => index * 50000000
+  );
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -794,7 +802,14 @@ function StockOverview({ records }) {
             <LineChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
-              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
+              <YAxis
+                domain={[0, nikeRetirementAxisMax]}
+                ticks={nikeRetirementTicks}
+                tick={{ fill: C.muted, fontSize: 11 }}
+                tickFormatter={axisWonFine}
+                tickLine={false}
+                width={58}
+              />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Line type="monotone" dataKey="나이키주식" name="나이키주식" stroke={C.orange} strokeWidth={2.5} dot={false} isAnimationActive={false} />
