@@ -555,6 +555,7 @@ function AssetOverview({ records }) {
 
       <div className="stat-grid">
         <StatCard label="가족 순자산" value={compactWon(latest["순자산합계"])} color={C.green} sub={<ChangePill value={latest["순자산합계"] - periodStart["순자산합계"]} label="선택기간 변화" />} />
+        <StatCard label="자산 합계" value={compactWon(latest["자산합계"])} color={C.violet} sub={<ChangePill value={latest["자산합계"] - periodStart["자산합계"]} label="선택기간 변화" />} />
         <StatCard label="목표 대비" value={compactWon(latest["순자산-목표순자산"])} color={C.blue} sub={`목표 ${compactWon(latest["목표순자산"])} · 달성 ${percent(goalRate)}`} />
         <StatCard label="가용자산" value={compactWon(latest["가용자산 합"])} color={C.pink} sub={<ChangePill value={latest["가용자산 합"] - periodStart["가용자산 합"]} label="선택기간 변화" />} />
         <StatCard label="부채" value={compactWon(latest["부채합계"])} color={C.orange} sub={<ChangePill inverse value={latest["부채합계"] - periodStart["부채합계"]} label="선택기간 변화" />} />
@@ -1151,7 +1152,7 @@ export default function App() {
         * { box-sizing: border-box; }
         body { margin: 0; background: ${C.bg}; }
         button { font: inherit; }
-        .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .stat-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
         .three-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
         .main-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, 0.75fr); gap: 16px; }
         .lower-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
