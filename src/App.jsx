@@ -221,19 +221,24 @@ function parsePortfolioRows(rows) {
   const history = rows
     .slice(1)
     .filter((row) => row[16]?.trim())
-    .map((row) => ({
-      date: normalizeSheetDate(row[16]),
-      SPY: parseManwon(row[17]),
-      QQQ: parseManwon(row[18]),
-      SCHD: parseManwon(row[19]),
-      GLD: parseManwon(row[20]),
-      "현금/채권": parseManwon(row[21]),
-      SPY비중: parseManwon(row[22]),
-      QQQ비중: parseManwon(row[23]),
-      SCHD비중: parseManwon(row[24]),
-      GLD비중: parseManwon(row[25]),
-      현금채권비중: parseManwon(row[26]),
-    }))
+    .map((row) => {
+      const date = normalizeSheetDate(row[16]);
+      const parsedDate = parseDotDate(date);
+      return {
+        date,
+        isoDate: parsedDate ? inputDate(parsedDate) : "",
+        SPY: parseManwon(row[17]),
+        QQQ: parseManwon(row[18]),
+        SCHD: parseManwon(row[19]),
+        GLD: parseManwon(row[20]),
+        "현금/채권": parseManwon(row[21]),
+        SPY비중: parseManwon(row[22]),
+        QQQ비중: parseManwon(row[23]),
+        SCHD비중: parseManwon(row[24]),
+        GLD비중: parseManwon(row[25]),
+        현금채권비중: parseManwon(row[26]),
+      };
+    })
     .filter((row) => row.date);
 
   return { holdings, history };
@@ -993,20 +998,22 @@ function PortfolioBars({ rows, total }) {
 
 function PortfolioView({ portfolio }) {
   const { holdings, history } = portfolio;
-  const historyDates = history.map((row) => parseDotDate(row.date)).filter(Boolean);
-  const minDate = inputDate(historyDates[0] || new Date());
-  const maxDate = inputDate(historyDates.at(-1) || new Date());
-  const [startDate, setStartDate] = useState(inputDate(addMonths(historyDates.at(-1) || new Date(), -24)) < minDate ? minDate : inputDate(addMonths(historyDates.at(-1) || new Date(), -24)));
+  const minDate = history[0]?.isoDate || inputDate(new Date());
+  const maxDate = history.at(-1)?.isoDate || inputDate(new Date());
+  const defaultStartDate = inputDate(addMonths(parseDate(maxDate), -24)) < minDate ? minDate : inputDate(addMonths(parseDate(maxDate), -24));
+  const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(maxDate);
+  useEffect(() => {
+    if (!history.length) return;
+    setStartDate((current) => (current < minDate || current > maxDate ? defaultStartDate : current));
+    setEndDate((current) => (current < minDate || current > maxDate ? maxDate : current));
+  }, [defaultStartDate, history.length, maxDate, minDate]);
   const safeStartDate = startDate > endDate ? endDate : startDate;
   const safeEndDate = endDate < safeStartDate ? safeStartDate : endDate;
   const filteredHistory = history.filter((row) => {
-    const date = parseDotDate(row.date);
-    if (!date) return false;
-    const current = inputDate(date);
-    return current >= safeStartDate && current <= safeEndDate;
+    return row.isoDate >= safeStartDate && row.isoDate <= safeEndDate;
   });
-  const selectedHistory = filteredHistory.length ? filteredHistory : history.slice(-1);
+  const selectedHistory = filteredHistory;
   const total = holdings.reduce((sum, item) => sum + item.amount, 0);
   const ckTotal = holdings.reduce((sum, item) => sum + item.ck, 0);
   const ellaTotal = holdings.reduce((sum, item) => sum + item.ella, 0);
@@ -1116,7 +1123,7 @@ function PortfolioView({ portfolio }) {
         <Panel accent={C.violet}>
           <PanelTitle title="SPY · QQQ · SCHD · GLD 금액 추이" sub={latestHistory ? `최신 기록 ${latestHistory.date}` : "시계열 데이터"} />
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={selectedHistory} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+            <LineChart key={`amount-${safeStartDate}-${safeEndDate}`} data={selectedHistory} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
               <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => compactManwon(value)} tickLine={false} width={60} />
@@ -1148,7 +1155,7 @@ function PortfolioView({ portfolio }) {
         <Panel accent={C.pink}>
           <PanelTitle title="각 티커 비중 변화" sub="포트폴리오 내 비중 %" />
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={selectedHistory} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+            <LineChart key={`ratio-${safeStartDate}-${safeEndDate}`} data={selectedHistory} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
               <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => `${value}%`} tickLine={false} width={50} />
@@ -1330,7 +1337,7 @@ export default function App() {
         {!error && !records.length && <Panel><PanelTitle title="데이터 로딩 중" sub="Google Sheets CSV를 불러오고 있습니다." /></Panel>}
         {!error && records.length > 0 && page === "asset" && <AssetOverview records={records} />}
         {!error && records.length > 0 && page === "stock" && <StockOverview records={records} />}
-        {!error && records.length > 0 && page === "portfolio" && <PortfolioView portfolio={portfolio} />}
+        {!error && records.length > 0 && page === "portfolio" && portfolio.history.length > 0 && <PortfolioView portfolio={portfolio} />}
         {!error && records.length > 0 && page === "unified" && <UnifiedView records={records} portfolio={portfolio} />}
         <div style={{ marginTop: 24, color: C.muted, fontSize: 10, textAlign: "right" }}>
           데이터 출처: Google Sheets · 금액 단위: 원
