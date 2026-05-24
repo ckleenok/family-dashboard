@@ -701,38 +701,40 @@ function StockOverview({ records }) {
   const data = chartRows(records);
   const stockRatio = latest["자산합계"] ? latest["주식"] / latest["자산합계"] : 0;
   const liquidRatio = latest["가용자산 합"] ? latest["주식"] / latest["가용자산 합"] : 0;
-  const stockDetailItems = [
-    { name: "연희 토스 주식", value: latest["연희 토스 주식"], color: C.pink },
-    { name: "연희 미래 ISA/연금", value: latest["연희 미래 ISA/연금"], color: C.violet },
-    { name: "철규 미래 ISA", value: latest["철규 미래 ISA"], color: C.blue },
-    { name: "철규 토스 주식", value: latest["철규 토스 주식"], color: C.green },
-    { name: "카카오 주식", value: latest["카카오 주식"], color: C.orange },
-    { name: "미래 연금저축", value: latest["미래 연금저축"], color: "#f59e0b" },
-    { name: "미래IRP", value: latest["미래IRP"], color: C.muted },
-  ]
+  const stockDetailDefinitions = [
+    { name: "연희 토스 주식", field: "연희 토스 주식", valueKey: "연희토스주식", color: C.pink },
+    { name: "연희 미래 ISA/연금", field: "연희 미래 ISA/연금", valueKey: "연희미래ISA연금", color: C.violet },
+    { name: "철규 미래 ISA", field: "철규 미래 ISA", valueKey: "철규미래ISA", color: C.blue },
+    { name: "철규 토스 주식", field: "철규 토스 주식", valueKey: "철규토스주식", color: C.green },
+    { name: "카카오 주식", field: "카카오 주식", valueKey: "카카오주식", color: C.orange },
+    { name: "미래 연금저축", field: "미래 연금저축", valueKey: "미래연금저축", color: "#f59e0b" },
+    { name: "미래IRP", field: "미래IRP", valueKey: "미래IRP", color: C.muted },
+  ];
+  const stockDetailItems = stockDetailDefinitions
+    .map((item) => ({ ...item, value: latest[item.field] }))
     .filter((item) => Number.isFinite(item.value) && item.value > 0)
     .sort((a, b) => b.value - a.value);
   const stockDetailTotal = stockDetailItems.reduce((sum, item) => sum + item.value, 0);
   const ellaStockTotal = (latest["연희 토스 주식"] || 0) + (latest["연희 미래 ISA/연금"] || 0);
   const ckStockTotal = stockDetailTotal - ellaStockTotal;
-  const stockDetailMax = Math.max(
-    10000000,
-    ...data.flatMap((item) => [
-      item.연희토스주식 || 0,
-      item.연희미래ISA연금 || 0,
-      item.철규미래ISA || 0,
-      item.철규토스주식 || 0,
-      item.카카오주식 || 0,
-      item.미래연금저축 || 0,
-      item.미래IRP || 0,
-    ])
-  );
-  const stockDetailTickStep = stockDetailMax > 80000000 ? 25000000 : 10000000;
-  const stockDetailAxisMax = Math.ceil(stockDetailMax / stockDetailTickStep) * stockDetailTickStep;
-  const stockDetailTicks = Array.from(
-    { length: Math.floor(stockDetailAxisMax / stockDetailTickStep) + 1 },
-    (_, index) => index * stockDetailTickStep
-  );
+  const stockDetailChanges = stockDetailItems.map((item) => {
+    const rows = data.map((row, index) => {
+      const before = index > 0 ? data[index - 1][item.valueKey] || 0 : row[item.valueKey] || 0;
+      return {
+        date: row.date,
+        change: (row[item.valueKey] || 0) - before,
+      };
+    });
+    const maxAbs = Math.max(10000000, ...rows.map((row) => Math.abs(row.change || 0)));
+    const step = maxAbs > 80000000 ? 50000000 : 10000000;
+    const axisMax = Math.ceil(maxAbs / step) * step;
+    return {
+      ...item,
+      rows,
+      axisMax,
+      ticks: [-axisMax, 0, axisMax],
+    };
+  });
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -780,31 +782,38 @@ function StockOverview({ records }) {
         </Panel>
 
         <Panel accent={C.pink}>
-          <PanelTitle title="주식 세부 항목 추이" sub="P/Q/S/T/U/V/W 컬럼 기준" />
-          <ResponsiveContainer width="100%" height={420}>
-            <BarChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }} barGap={2} barCategoryGap="18%">
-              <CartesianGrid {...GRID} />
-              <XAxis dataKey="date" interval={3} tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
-              <YAxis
-                domain={[0, stockDetailAxisMax]}
-                ticks={stockDetailTicks}
-                tick={{ fill: C.muted, fontSize: 11 }}
-                tickFormatter={axisWonFine}
-                tickLine={false}
-                width={58}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <ReferenceLine y={0} stroke={C.muted} strokeOpacity={0.8} />
-              <Bar dataKey="연희토스주식" name="연희 토스" fill={C.pink} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="연희미래ISA연금" name="연희 미래 ISA/연금" fill={C.violet} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="철규미래ISA" name="철규 미래 ISA" fill={C.blue} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="철규토스주식" name="철규 토스" fill={C.green} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="카카오주식" name="카카오 주식" fill={C.orange} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="미래연금저축" name="미래 연금저축" fill="#f59e0b" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="미래IRP" name="미래IRP" fill={C.muted} radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <PanelTitle title="주식 세부 항목 월 증감" sub="개별 항목별 전월 대비" />
+          <div style={{ display: "grid", gap: 18 }}>
+            {stockDetailChanges.map((item) => (
+              <div key={item.name}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+                  <div style={{ color: item.color, fontSize: 13, fontWeight: 900 }}>{item.name}</div>
+                  <div style={{ color: C.muted, fontSize: 12 }}>{compactWon(item.value)}</div>
+                </div>
+                <ResponsiveContainer width="100%" height={150}>
+                  <BarChart data={item.rows} margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
+                    <CartesianGrid {...GRID} />
+                    <XAxis dataKey="date" interval={4} tick={{ fill: C.muted, fontSize: 10 }} tickLine={false} />
+                    <YAxis
+                      domain={[-item.axisMax, item.axisMax]}
+                      ticks={item.ticks}
+                      tick={{ fill: C.muted, fontSize: 10 }}
+                      tickFormatter={axisWonFine}
+                      tickLine={false}
+                      width={48}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <ReferenceLine y={0} stroke={C.muted} strokeOpacity={0.8} />
+                    <Bar dataKey="change" name={`${item.name} 증감`} radius={[3, 3, 0, 0]}>
+                      {item.rows.map((row) => (
+                        <Cell key={`${item.name}-${row.date}`} fill={(row.change || 0) >= 0 ? C.green : C.pink} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ))}
+          </div>
         </Panel>
       </div>
     </div>
