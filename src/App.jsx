@@ -771,36 +771,38 @@ function StockOverview({ records }) {
         <StatCard label="가용자산 내 비중" value={percent(liquidRatio)} color={C.pink} sub={`가용자산 ${compactWon(latest["가용자산 합"])}`} />
       </div>
 
-      <Panel accent={C.violet}>
-        <PanelTitle title="주식 · 현금성 자산 추이" sub="월별 스냅샷 기준" />
-        <ResponsiveContainer width="100%" height={330}>
-          <LineChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
-            <CartesianGrid {...GRID} />
-            <XAxis dataKey="date" interval={3} tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
-            <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line type="monotone" dataKey="주식" stroke={C.violet} strokeWidth={2.5} dot={false} />
-            <Line type="monotone" dataKey="현금성" stroke={C.green} strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="가용자산" stroke={C.blue} strokeWidth={2} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </Panel>
+      <div className="lower-grid">
+        <Panel accent={C.violet}>
+          <PanelTitle title="주식 · 현금성 자산 추이" sub="월별 스냅샷 기준" />
+          <ResponsiveContainer width="100%" height={330}>
+            <LineChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="date" interval={3} tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line type="monotone" dataKey="주식" stroke={C.violet} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="현금성" stroke={C.green} strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="가용자산" stroke={C.blue} strokeWidth={2} dot={false} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Panel>
 
-      <Panel accent={C.orange}>
-        <PanelTitle title="나이키주식 · 미래 퇴직연금 추이" sub="선택기간 기준" />
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data} margin={{ top: 8, right: 14, bottom: 0, left: 8 }}>
-            <CartesianGrid {...GRID} />
-            <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
-            <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line type="monotone" dataKey="나이키주식" name="나이키주식" stroke={C.orange} strokeWidth={2.5} dot={false} />
-            <Line type="monotone" dataKey="미래퇴직연금" name="미래 퇴직연금" stroke={C.violet} strokeWidth={2.5} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </Panel>
+        <Panel accent={C.orange}>
+          <PanelTitle title="나이키주식 · 미래 퇴직연금 추이" sub="선택기간 기준" />
+          <ResponsiveContainer width="100%" height={330}>
+            <LineChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+              <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line type="monotone" dataKey="나이키주식" name="나이키주식" stroke={C.orange} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="미래퇴직연금" name="미래 퇴직연금" stroke={C.violet} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Panel>
+      </div>
 
       <div className="lower-grid">
         <Panel accent={C.blue}>
