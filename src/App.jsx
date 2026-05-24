@@ -42,6 +42,7 @@ const C = {
 
 const MIX_COLORS = [C.green, C.blue, C.orange, C.violet];
 const GRID = { stroke: C.border, strokeDasharray: "3 3" };
+const QUICK_RANGES = [3, 6, 9, 12, 18, 24];
 
 function parseCsv(text) {
   const rows = [];
@@ -89,6 +90,14 @@ function parseNumber(raw) {
 function parseDate(raw) {
   const [year, month, day] = String(raw).trim().split("-").map(Number);
   return new Date(year, month - 1, day);
+}
+
+function parseDotDate(raw) {
+  const parts = String(raw ?? "").split(".").map(Number);
+  if (parts.length < 3) return null;
+  const year = parts[0] < 100 ? 2000 + parts[0] : parts[0];
+  const date = new Date(year, parts[1] - 1, parts[2]);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function formatDate(date) {
@@ -310,6 +319,100 @@ function quickButtonStyle(active, color) {
   };
 }
 
+function DateRangeControls({
+  minDate,
+  maxDate,
+  startDate,
+  endDate,
+  setStartDate,
+  setEndDate,
+  selectedLabel,
+  accent = C.blue,
+}) {
+  const safeStartDate = startDate > endDate ? endDate : startDate;
+  const safeEndDate = endDate < safeStartDate ? safeStartDate : endDate;
+  const activeQuickRange = QUICK_RANGES.find((months) => {
+    const quickStart = inputDate(addMonths(parseDate(maxDate), -months));
+    return quickStart >= minDate && safeStartDate === quickStart && safeEndDate === maxDate;
+  });
+  const applyQuickRange = (months) => {
+    const quickStart = inputDate(addMonths(parseDate(maxDate), -months));
+    setStartDate(quickStart < minDate ? minDate : quickStart);
+    setEndDate(maxDate);
+  };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(420px, 520px) minmax(360px, 1fr)", gap: 16, alignItems: "stretch" }}>
+      <Panel accent={accent} style={{ padding: "14px 16px" }}>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.25 }}>기간 선택</h2>
+            <div style={{ marginTop: 4, color: C.muted, fontSize: 12 }}>{selectedLabel}</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(180px, 1fr))", gap: 12 }}>
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작일</span>
+              <input
+                aria-label="시작 날짜"
+                type="date"
+                min={minDate}
+                max={maxDate}
+                value={safeStartDate}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setStartDate(value);
+                  if (value > endDate) setEndDate(value);
+                }}
+                style={dateInputStyle(accent)}
+              />
+            </label>
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료일</span>
+              <input
+                aria-label="종료 날짜"
+                type="date"
+                min={minDate}
+                max={maxDate}
+                value={safeEndDate}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setEndDate(value);
+                  if (value < startDate) setStartDate(value);
+                }}
+                style={dateInputStyle(C.pink)}
+              />
+            </label>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel accent={C.green} style={{ padding: "14px 16px" }}>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.25 }}>빠른 선택</h2>
+            <div style={{ marginTop: 4, color: C.muted, fontSize: 12 }}>최신 기록 기준으로 기간을 바로 적용</div>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignContent: "start" }}>
+            {QUICK_RANGES.map((months) => (
+              <button
+                key={months}
+                type="button"
+                onClick={() => applyQuickRange(months)}
+                style={quickButtonStyle(activeQuickRange === months, accent)}
+              >
+                지난 {months}개월
+              </button>
+            ))}
+            <button type="button" onClick={() => { setStartDate(minDate); setEndDate(maxDate); }} style={quickButtonStyle(safeStartDate === minDate && safeEndDate === maxDate, accent)}>
+              전체
+            </button>
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -444,7 +547,6 @@ function chartRows(records) {
 function AssetOverview({ records }) {
   const minDate = inputDate(records[0].date);
   const maxDate = inputDate(records.at(-1).date);
-  const quickRanges = [3, 6, 9, 12, 18, 24];
   const [startDate, setStartDate] = useState(minDate);
   const [endDate, setEndDate] = useState(maxDate);
   const safeStartDate = startDate > endDate ? endDate : startDate;
@@ -464,94 +566,19 @@ function AssetOverview({ records }) {
   const selectedLabel = selectedRecords.length
     ? `${formatDate(periodStart.date)} - ${formatDate(latest.date)} · ${selectedRecords.length}개 기록`
     : "선택한 기간에 기록이 없습니다";
-  const activeQuickRange = quickRanges.find((months) => {
-    const quickStart = inputDate(addMonths(records.at(-1).date, -months));
-    const boundedStart = quickStart < minDate ? minDate : quickStart;
-    return safeStartDate === boundedStart && safeEndDate === maxDate;
-  });
-  const applyQuickRange = (months) => {
-    const quickStart = inputDate(addMonths(records.at(-1).date, -months));
-    setStartDate(quickStart < minDate ? minDate : quickStart);
-    setEndDate(maxDate);
-  };
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(420px, 520px) minmax(360px, 1fr)", gap: 16, alignItems: "stretch" }}>
-        <Panel accent={C.blue} style={{ padding: "14px 16px" }}>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.25 }}>기간 선택</h2>
-              <div style={{ marginTop: 4, color: C.muted, fontSize: 12 }}>{selectedLabel}</div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(180px, 1fr))", gap: 12 }}>
-              <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>시작일</span>
-                <input
-                  aria-label="자산현황 시작 날짜"
-                  type="date"
-                  min={minDate}
-                  max={maxDate}
-                  value={safeStartDate}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setStartDate(value);
-                    if (value > endDate) setEndDate(value);
-                  }}
-                  style={dateInputStyle(C.blue)}
-                />
-              </label>
-              <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>종료일</span>
-                <input
-                  aria-label="자산현황 종료 날짜"
-                  type="date"
-                  min={minDate}
-                  max={maxDate}
-                  value={safeEndDate}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setEndDate(value);
-                    if (value < startDate) setStartDate(value);
-                  }}
-                  style={dateInputStyle(C.pink)}
-                />
-              </label>
-            </div>
-          </div>
-        </Panel>
-
-        <Panel accent={C.green} style={{ padding: "14px 16px" }}>
-          <div style={{ display: "grid", gap: 12 }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.25 }}>빠른 선택</h2>
-              <div style={{ marginTop: 4, color: C.muted, fontSize: 12 }}>최신 기록 기준으로 기간을 바로 적용</div>
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignContent: "start" }}>
-              {quickRanges.map((months) => (
-                <button
-                  key={months}
-                  type="button"
-                  onClick={() => applyQuickRange(months)}
-                  style={quickButtonStyle(activeQuickRange === months, C.blue)}
-                >
-                  지난 {months}개월
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => {
-                  setStartDate(minDate);
-                  setEndDate(maxDate);
-                }}
-                style={quickButtonStyle(safeStartDate === minDate && safeEndDate === maxDate, C.green)}
-              >
-                전체
-              </button>
-            </div>
-          </div>
-        </Panel>
-      </div>
+      <DateRangeControls
+        minDate={minDate}
+        maxDate={maxDate}
+        startDate={startDate}
+        endDate={endDate}
+        setStartDate={setStartDate}
+        setEndDate={setEndDate}
+        selectedLabel={selectedLabel}
+        accent={C.blue}
+      />
 
       <div className="stat-grid">
         <StatCard label="가족 순자산" value={compactWon(latest["순자산합계"])} color={C.green} sub={<ChangePill value={latest["순자산합계"] - periodStart["순자산합계"]} label="선택기간 변화" />} />
@@ -697,9 +724,24 @@ function AssetOverview({ records }) {
 }
 
 function StockOverview({ records }) {
-  const latest = records.at(-1);
-  const previous = records.at(-2) || latest;
-  const data = chartRows(records);
+  const minDate = inputDate(records[0].date);
+  const maxDate = inputDate(records.at(-1).date);
+  const [startDate, setStartDate] = useState(inputDate(addMonths(records.at(-1).date, -24)) < minDate ? minDate : inputDate(addMonths(records.at(-1).date, -24)));
+  const [endDate, setEndDate] = useState(maxDate);
+  const safeStartDate = startDate > endDate ? endDate : startDate;
+  const safeEndDate = endDate < safeStartDate ? safeStartDate : endDate;
+  const selectedRecords = records.filter((record) => {
+    const current = inputDate(record.date);
+    return current >= safeStartDate && current <= safeEndDate;
+  });
+  const periodRecords = selectedRecords.length ? selectedRecords : records.slice(-1);
+  const latest = periodRecords.at(-1);
+  const previous = periodRecords.at(-2) || latest;
+  const data = chartRows(periodRecords);
+  const periodStart = periodRecords[0] || latest;
+  const selectedLabel = periodRecords.length
+    ? `${formatDate(periodStart.date)} - ${formatDate(latest.date)} · ${periodRecords.length}개 기록`
+    : "선택한 기간에 기록이 없습니다";
   const stockRatio = latest["자산합계"] ? latest["주식"] / latest["자산합계"] : 0;
   const liquidRatio = latest["가용자산 합"] ? latest["주식"] / latest["가용자산 합"] : 0;
   const stockDetailDefinitions = [
@@ -739,6 +781,17 @@ function StockOverview({ records }) {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <DateRangeControls
+        minDate={minDate}
+        maxDate={maxDate}
+        startDate={startDate}
+        endDate={endDate}
+        setStartDate={setStartDate}
+        setEndDate={setEndDate}
+        selectedLabel={selectedLabel}
+        accent={C.violet}
+      />
+
       <div className="three-grid">
         <StatCard label="주식 평가액" value={compactWon(latest["주식"])} color={C.violet} sub={<ChangePill value={latest["주식"] - previous["주식"]} />} />
         <StatCard label="전체 자산 내 비중" value={percent(stockRatio)} color={C.blue} sub={`자산합계 ${compactWon(latest["자산합계"])}`} />
@@ -822,8 +875,23 @@ function StockOverview({ records }) {
 }
 
 function UnifiedView({ records, portfolio }) {
-  const latest = records.at(-1);
-  const previous = records.at(-2) || latest;
+  const minDate = inputDate(records[0].date);
+  const maxDate = inputDate(records.at(-1).date);
+  const [startDate, setStartDate] = useState(inputDate(addMonths(records.at(-1).date, -24)) < minDate ? minDate : inputDate(addMonths(records.at(-1).date, -24)));
+  const [endDate, setEndDate] = useState(maxDate);
+  const safeStartDate = startDate > endDate ? endDate : startDate;
+  const safeEndDate = endDate < safeStartDate ? safeStartDate : endDate;
+  const selectedRecords = records.filter((record) => {
+    const current = inputDate(record.date);
+    return current >= safeStartDate && current <= safeEndDate;
+  });
+  const periodRecords = selectedRecords.length ? selectedRecords : records.slice(-1);
+  const latest = periodRecords.at(-1);
+  const previous = periodRecords.at(-2) || latest;
+  const periodStart = periodRecords[0] || latest;
+  const selectedLabel = periodRecords.length
+    ? `${formatDate(periodStart.date)} - ${formatDate(latest.date)} · ${periodRecords.length}개 기록`
+    : "선택한 기간에 기록이 없습니다";
   const total = latest["자산합계"] || 0;
   const ckTotal = portfolio.holdings.reduce((sum, item) => sum + item.ck, 0);
   const ellaTotal = portfolio.holdings.reduce((sum, item) => sum + item.ella, 0);
@@ -831,6 +899,17 @@ function UnifiedView({ records, portfolio }) {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <DateRangeControls
+        minDate={minDate}
+        maxDate={maxDate}
+        startDate={startDate}
+        endDate={endDate}
+        setStartDate={setStartDate}
+        setEndDate={setEndDate}
+        selectedLabel={selectedLabel}
+        accent={C.blue}
+      />
+
       <div className="three-grid">
         <StatCard label="가족 순자산" value={compactWon(latest["순자산합계"])} color={C.green} sub={`목표 달성 ${percent(latest["순자산합계"] / latest["목표순자산"])}`} />
         <StatCard label="투자/주식 자산" value={compactWon(latest["주식"])} color={C.blue} sub={<ChangePill value={latest["주식"] - previous["주식"]} />} />
@@ -914,6 +993,20 @@ function PortfolioBars({ rows, total }) {
 
 function PortfolioView({ portfolio }) {
   const { holdings, history } = portfolio;
+  const historyDates = history.map((row) => parseDotDate(row.date)).filter(Boolean);
+  const minDate = inputDate(historyDates[0] || new Date());
+  const maxDate = inputDate(historyDates.at(-1) || new Date());
+  const [startDate, setStartDate] = useState(inputDate(addMonths(historyDates.at(-1) || new Date(), -24)) < minDate ? minDate : inputDate(addMonths(historyDates.at(-1) || new Date(), -24)));
+  const [endDate, setEndDate] = useState(maxDate);
+  const safeStartDate = startDate > endDate ? endDate : startDate;
+  const safeEndDate = endDate < safeStartDate ? safeStartDate : endDate;
+  const filteredHistory = history.filter((row) => {
+    const date = parseDotDate(row.date);
+    if (!date) return false;
+    const current = inputDate(date);
+    return current >= safeStartDate && current <= safeEndDate;
+  });
+  const selectedHistory = filteredHistory.length ? filteredHistory : history.slice(-1);
   const total = holdings.reduce((sum, item) => sum + item.amount, 0);
   const ckTotal = holdings.reduce((sum, item) => sum + item.ck, 0);
   const ellaTotal = holdings.reduce((sum, item) => sum + item.ella, 0);
@@ -922,10 +1015,25 @@ function PortfolioView({ portfolio }) {
   const regionRows = groupedRows(holdings, "region", [C.blue, C.violet, C.orange]);
   const byOwnerCategory = ownerCategoryRows(holdings);
   const byOwnerRegion = ownerRegionRows(holdings);
-  const latestHistory = history.at(-1);
+  const latestHistory = selectedHistory.at(-1);
+  const firstHistory = selectedHistory[0];
+  const selectedLabel = firstHistory && latestHistory
+    ? `${firstHistory.date} - ${latestHistory.date} · ${selectedHistory.length}개 기록`
+    : "선택한 기간에 기록이 없습니다";
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <DateRangeControls
+        minDate={minDate}
+        maxDate={maxDate}
+        startDate={startDate}
+        endDate={endDate}
+        setStartDate={setStartDate}
+        setEndDate={setEndDate}
+        selectedLabel={selectedLabel}
+        accent={C.orange}
+      />
+
       <div className="three-grid">
         <StatCard label="포트폴리오 총액" value={compactManwon(total)} color={C.green} sub={`${holdings.length}개 보유 항목`} />
         <StatCard label="철규 보유" value={compactManwon(ckTotal)} color={C.blue} sub={`전체의 ${percent(ckTotal / total)}`} />
@@ -1008,7 +1116,7 @@ function PortfolioView({ portfolio }) {
         <Panel accent={C.violet}>
           <PanelTitle title="SPY · QQQ · SCHD · GLD 금액 추이" sub={latestHistory ? `최신 기록 ${latestHistory.date}` : "시계열 데이터"} />
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={history} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+            <LineChart data={selectedHistory} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
               <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => compactManwon(value)} tickLine={false} width={60} />
@@ -1040,7 +1148,7 @@ function PortfolioView({ portfolio }) {
         <Panel accent={C.pink}>
           <PanelTitle title="각 티커 비중 변화" sub="포트폴리오 내 비중 %" />
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={history} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+            <LineChart data={selectedHistory} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
               <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(value) => `${value}%`} tickLine={false} width={50} />
