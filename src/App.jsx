@@ -23,6 +23,8 @@ const SHEET_CSV_URL =
   "https://docs.google.com/spreadsheets/d/1HM_Jxv6zQzr-O5Spt06uq2HTyX1yFTVju2jzVjneL5M/export?format=csv&gid=462380555";
 const PORTFOLIO_CSV_URL =
   "https://docs.google.com/spreadsheets/d/1HM_Jxv6zQzr-O5Spt06uq2HTyX1yFTVju2jzVjneL5M/export?format=csv&gid=172728277";
+const SOURCE_SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1HM_Jxv6zQzr-O5Spt06uq2HTyX1yFTVju2jzVjneL5M/edit";
 
 const C = {
   bg: "#070b14",
@@ -1220,13 +1222,12 @@ const NAV = [
   { key: "asset", label: "자산현황", color: C.green },
   { key: "stock", label: "주식현황", color: C.violet },
   { key: "portfolio", label: "포트폴리오", color: C.orange },
-  { key: "unified", label: "통합뷰", color: C.blue },
 ];
 
 export default function App() {
   const [page, setPage] = useState(() => {
     const key = window.location.hash.replace("#", "");
-    return NAV.some((item) => item.key === key) ? key : "unified";
+    return NAV.some((item) => item.key === key) ? key : "asset";
   });
   const [records, setRecords] = useState([]);
   const [portfolio, setPortfolio] = useState({ holdings: [], history: [] });
@@ -1329,6 +1330,23 @@ export default function App() {
               {item.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => window.open(SOURCE_SHEET_URL, "_blank", "noopener,noreferrer")}
+            style={{
+              height: 32,
+              padding: "0 16px",
+              borderRadius: 8,
+              border: `1px solid ${C.blue}`,
+              background: `${C.blue}12`,
+              color: C.blue,
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            원본 시트
+          </button>
         </nav>
       </header>
 
@@ -1338,7 +1356,6 @@ export default function App() {
         {!error && records.length > 0 && page === "asset" && <AssetOverview records={records} />}
         {!error && records.length > 0 && page === "stock" && <StockOverview records={records} />}
         {!error && records.length > 0 && page === "portfolio" && portfolio.history.length > 0 && <PortfolioView portfolio={portfolio} />}
-        {!error && records.length > 0 && page === "unified" && <UnifiedView records={records} portfolio={portfolio} />}
         <div style={{ marginTop: 24, color: C.muted, fontSize: 10, textAlign: "right" }}>
           데이터 출처: Google Sheets · 금액 단위: 원
         </div>
