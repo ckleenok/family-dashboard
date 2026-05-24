@@ -527,9 +527,12 @@ function AssetBars({ latest, items: customItems }) {
 }
 
 function chartRows(records) {
-  return records.map((record) => ({
+  return records.map((record, index) => {
+    const previous = index > 0 ? records[index - 1] : record;
+    return {
     date: `${record.date.getFullYear().toString().slice(2)}.${String(record.date.getMonth() + 1).padStart(2, "0")}`,
     순자산: record["순자산합계"],
+    순자산증감: (record["순자산합계"] || 0) - (previous["순자산합계"] || 0),
     목표: record["목표순자산"],
     자산: record["자산합계"],
     부채: record["부채합계"],
@@ -546,7 +549,8 @@ function chartRows(records) {
     미래퇴직연금: record["미래 퇴직연금"],
     주식: record["주식"],
     현금성: record["현금성자산"],
-  }));
+    };
+  });
 }
 
 function AssetOverview({ records }) {
@@ -681,16 +685,17 @@ function AssetOverview({ records }) {
 
       <div className="lower-grid">
         <Panel accent={C.green}>
-          <PanelTitle title="가용자산 월 증감" sub="선택기간 기준" />
+          <PanelTitle title="순자산 월증감" sub="AM 컬럼 기준" />
           <ResponsiveContainer width="100%" height={230}>
             <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
               <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="증감" name="가용자산 증감" radius={[4, 4, 0, 0]}>
+              <ReferenceLine y={0} stroke={C.muted} strokeOpacity={0.8} />
+              <Bar dataKey="순자산증감" name="순자산 월증감" radius={[4, 4, 0, 0]}>
                 {data.map((item) => (
-                  <Cell key={item.date} fill={(item.증감 || 0) >= 0 ? C.green : C.pink} />
+                  <Cell key={item.date} fill={(item.순자산증감 || 0) >= 0 ? C.green : C.pink} />
                 ))}
               </Bar>
             </BarChart>
