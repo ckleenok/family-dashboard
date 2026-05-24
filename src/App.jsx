@@ -12,6 +12,7 @@ import {
   LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -780,8 +781,8 @@ function StockOverview({ records }) {
 
         <Panel accent={C.pink}>
           <PanelTitle title="주식 세부 항목 추이" sub="P/Q/S/T/U/V/W 컬럼 기준" />
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }}>
+          <ResponsiveContainer width="100%" height={420}>
+            <BarChart data={data} margin={{ top: 4, right: 14, bottom: 0, left: 8 }} barGap={2} barCategoryGap="18%">
               <CartesianGrid {...GRID} />
               <XAxis dataKey="date" interval={3} tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
               <YAxis
@@ -794,14 +795,15 @@ function StockOverview({ records }) {
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line type="monotone" dataKey="연희토스주식" name="연희 토스" stroke={C.pink} strokeWidth={2.2} dot={false} />
-              <Line type="monotone" dataKey="연희미래ISA연금" name="연희 미래 ISA/연금" stroke={C.violet} strokeWidth={2.2} dot={false} />
-              <Line type="monotone" dataKey="철규미래ISA" name="철규 미래 ISA" stroke={C.blue} strokeWidth={2.2} dot={false} />
-              <Line type="monotone" dataKey="철규토스주식" name="철규 토스" stroke={C.green} strokeWidth={2.2} dot={false} />
-              <Line type="monotone" dataKey="카카오주식" name="카카오 주식" stroke={C.orange} strokeWidth={2.2} dot={false} />
-              <Line type="monotone" dataKey="미래연금저축" name="미래 연금저축" stroke="#f59e0b" strokeWidth={2.2} dot={false} />
-              <Line type="monotone" dataKey="미래IRP" name="미래IRP" stroke={C.muted} strokeWidth={2.2} dot={false} />
-            </LineChart>
+              <ReferenceLine y={0} stroke={C.muted} strokeOpacity={0.8} />
+              <Bar dataKey="연희토스주식" name="연희 토스" fill={C.pink} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="연희미래ISA연금" name="연희 미래 ISA/연금" fill={C.violet} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="철규미래ISA" name="철규 미래 ISA" fill={C.blue} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="철규토스주식" name="철규 토스" fill={C.green} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="카카오주식" name="카카오 주식" fill={C.orange} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="미래연금저축" name="미래 연금저축" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="미래IRP" name="미래IRP" fill={C.muted} radius={[3, 3, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </Panel>
       </div>
