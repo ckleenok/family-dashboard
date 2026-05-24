@@ -665,49 +665,32 @@ function AssetOverview({ records }) {
           </ResponsiveContainer>
         </Panel>
 
-        <div style={{ display: "grid", gap: 16 }}>
-          <Panel accent={C.orange}>
-            <PanelTitle title="나이키주식 · 미래 퇴직연금 추이" sub="선택기간 기준" />
-            <ResponsiveContainer width="100%" height={230}>
-              <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
-                <CartesianGrid {...GRID} />
-                <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
-                <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="나이키주식" name="나이키주식" stroke={C.orange} strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="미래퇴직연금" name="미래 퇴직연금" stroke={C.violet} strokeWidth={2.5} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Panel>
-
-          <Panel>
-            <PanelTitle title="선택기간 기록" sub="최근 7개 스냅샷" />
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 620 }}>
-                <thead>
-                  <tr style={{ color: C.muted }}>
-                    {["날짜", "순자산", "목표", "차이", "가용자산", "부채"].map((head) => (
-                      <th key={head} style={{ textAlign: head === "날짜" ? "left" : "right", padding: "10px 8px", borderBottom: `1px solid ${C.border}` }}>{head}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedRecords.slice(-7).reverse().map((record) => (
-                    <tr key={record.rawDate}>
-                      <td style={td("left")}>{formatDate(record.date)}</td>
-                      <td style={td()}>{compactWon(record["순자산합계"])}</td>
-                      <td style={td()}>{compactWon(record["목표순자산"])}</td>
-                      <td style={td()}>{compactWon(record["순자산-목표순자산"])}</td>
-                      <td style={td()}>{compactWon(record["가용자산 합"])}</td>
-                      <td style={td()}>{compactWon(record["부채합계"])}</td>
-                    </tr>
+        <Panel>
+          <PanelTitle title="선택기간 기록" sub="최근 7개 스냅샷" />
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 620 }}>
+              <thead>
+                <tr style={{ color: C.muted }}>
+                  {["날짜", "순자산", "목표", "차이", "가용자산", "부채"].map((head) => (
+                    <th key={head} style={{ textAlign: head === "날짜" ? "left" : "right", padding: "10px 8px", borderBottom: `1px solid ${C.border}` }}>{head}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </div>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedRecords.slice(-7).reverse().map((record) => (
+                  <tr key={record.rawDate}>
+                    <td style={td("left")}>{formatDate(record.date)}</td>
+                    <td style={td()}>{compactWon(record["순자산합계"])}</td>
+                    <td style={td()}>{compactWon(record["목표순자산"])}</td>
+                    <td style={td()}>{compactWon(record["순자산-목표순자산"])}</td>
+                    <td style={td()}>{compactWon(record["가용자산 합"])}</td>
+                    <td style={td()}>{compactWon(record["부채합계"])}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       </div>
     </div>
   );
@@ -800,6 +783,21 @@ function StockOverview({ records }) {
             <Line type="monotone" dataKey="주식" stroke={C.violet} strokeWidth={2.5} dot={false} />
             <Line type="monotone" dataKey="현금성" stroke={C.green} strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="가용자산" stroke={C.blue} strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </Panel>
+
+      <Panel accent={C.orange}>
+        <PanelTitle title="나이키주식 · 미래 퇴직연금 추이" sub="선택기간 기준" />
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data} margin={{ top: 8, right: 14, bottom: 0, left: 8 }}>
+            <CartesianGrid {...GRID} />
+            <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+            <YAxis tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={axisWon} tickLine={false} width={54} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Line type="monotone" dataKey="나이키주식" name="나이키주식" stroke={C.orange} strokeWidth={2.5} dot={false} />
+            <Line type="monotone" dataKey="미래퇴직연금" name="미래 퇴직연금" stroke={C.violet} strokeWidth={2.5} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </Panel>
