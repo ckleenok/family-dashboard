@@ -138,6 +138,7 @@ function rowsToRecords(rows) {
   if (headers[22]?.trim() === "미래IRP") indexes["미래IRP"] = 22;
   if (headers[26]?.trim() === "나이키주식") indexes["나이키주식"] = 26;
   if (headers[27]?.trim() === "미래 퇴직연금") indexes["미래 퇴직연금"] = 27;
+  if (headers[32]?.trim() === "자산 합계" || headers[32]?.trim() === "자산합계") indexes["자산합계"] = 32;
   if (headers[39]?.trim() === "목표순자산") indexes["목표순자산"] = 39;
 
   return rows
@@ -607,18 +608,25 @@ function AssetOverview({ records }) {
 
       <div className="lower-grid">
         <Panel accent={C.orange}>
-          <PanelTitle title="추가 자산 항목" sub="AA · AB 컬럼 기준" />
-          <AssetBars
-            latest={{
-              "나이키주식": latest["나이키주식"],
-              "미래 퇴직연금": latest["미래 퇴직연금"],
-              "자산합계": latest["자산합계"],
-            }}
-            items={[
-              { name: "나이키주식", value: latest["나이키주식"], color: C.orange },
-              { name: "미래 퇴직연금", value: latest["미래 퇴직연금"], color: C.violet },
-            ]}
-          />
+          <PanelTitle title="자산 합계 추이" sub="AG 컬럼 기준" />
+          <ResponsiveContainer width="100%" height={230}>
+            <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
+              <CartesianGrid {...GRID} />
+              <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 11 }} tickLine={false} />
+              <YAxis
+                domain={[
+                  (dataMin) => Math.max(0, Math.floor(dataMin / 100000000) * 100000000),
+                  (dataMax) => Math.ceil(dataMax / 100000000) * 100000000,
+                ]}
+                tick={{ fill: C.muted, fontSize: 11 }}
+                tickFormatter={axisWon}
+                tickLine={false}
+                width={54}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line type="monotone" dataKey="자산" name="자산 합계" stroke={C.orange} strokeWidth={2.8} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
         </Panel>
 
         <Panel accent={C.orange}>
